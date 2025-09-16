@@ -1,0 +1,18 @@
+webhook:
+  url: '' # Webhook URL，留空則停用
+  auth_key: '' # 認證金鑰
+idle:
+  window_seconds: 300 # 視窗閒置時間 (秒)
+  music_seconds: 60 # 音樂閒置時間 (秒)
+
+filter:
+  apps: # 要過濾的應用程式清單
+    - 'explorer'
+    - 'dwm'
+
+  disable_msedge_inprivate_filter: true # 是否停用 Edge InPrivate 模式的過濾
+
+logging:
+  level: 'info' # 日誌等級: debug, info, warn, error
+  file_path: 'apppulse.log' # 日誌檔案路徑，留空則輸出到控制台
+  debug: false # 除錯模式

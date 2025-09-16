@@ -1,0 +1,5 @@
+archive
+*.exe
+*.log
+dist
+config.yaml

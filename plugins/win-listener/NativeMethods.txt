@@ -1,0 +1,13 @@
+GetForegroundWindow
+GetWindowText
+GetWindowThreadProcessId
+SetWinEventHook
+UnhookWinEvent
+EVENT_SYSTEM_FOREGROUND
+WINEVENT_OUTOFCONTEXT
+DispatchMessage
+GetMessage
+TranslateMessage
+PostThreadMessage
+GetCurrentThreadId
+WM_QUIT
