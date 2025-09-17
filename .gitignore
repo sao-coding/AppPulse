@@ -3,3 +3,5 @@ archive
 *.log
 dist
 config.yaml
+bin
+obj
