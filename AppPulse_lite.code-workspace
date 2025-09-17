@@ -1,0 +1,14 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "plugins/win-listener",
+      "name": "win-listener"
+    }
+  ],
+  "settings": {
+    "dotnet.defaultSolution": "plugins/win-listener/AppPulse.WinListener.slnx"
+  }
+}
