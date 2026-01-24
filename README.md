@@ -120,6 +120,8 @@ filter:
 logging:
   level: 'info' # 日誌等級: debug, info, warn, error
   file_path: 'apppulse.log' # 日誌檔案路徑，留空則輸出到控制台
+
+debug: false # 除錯模式
 ```
 
 ## 原生外掛（plugins/win-listener）說明
