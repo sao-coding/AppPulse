@@ -11,9 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"apppulse-easy/pkg/config"
-	"apppulse-easy/pkg/logger"
-	"apppulse-easy/pkg/models"
+	"apppulse/pkg/config"
+	"apppulse/pkg/logger"
+	"apppulse/pkg/models"
+	"apppulse/pkg/tray"
 
 	"golang.org/x/sys/windows"
 )
@@ -26,6 +27,8 @@ type AppPulseClient struct {
 	httpClient    *http.Client
 	csharpProcess *os.Process
 	stopOnce      sync.Once
+	shutdownChan  chan struct{}
+	restartChan   chan struct{}
 
 	// 閒置處理相關欄位
 	mu              sync.Mutex
@@ -42,11 +45,11 @@ func NewAppPulseClient(configPath string) (*AppPulseClient, error) {
 		return nil, fmt.Errorf("載入配置失敗: %v", err)
 	}
 
-	// 設定日誌
-	lg := logger.New(cfg.Logging.Level, cfg.Logging.FilePath)
+	// 設定日誌，傳入 debug 模式參數
+	lg := logger.New(cfg.Logging.Level, cfg.Logging.FilePath, cfg.Debug)
 
 	// 如果開啟了除錯模式，則列印完整的配置
-	if cfg.Logging.Debug {
+	if cfg.Debug {
 		configJSON, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
 			lg.Printf("無法序列化配置以進行除錯: %v", err)
@@ -71,10 +74,48 @@ func NewAppPulseClient(configPath string) (*AppPulseClient, error) {
 	}
 
 	return &AppPulseClient{
-		config:     cfg,
-		logger:     lg,
-		httpClient: httpClient,
+		config:       cfg,
+		logger:       lg,
+		httpClient:   httpClient,
+		shutdownChan: make(chan struct{}),
+		restartChan:  make(chan struct{}),
 	}, nil
+}
+
+// InitTray 初始化系統托盤
+func (c *AppPulseClient) InitTray() {
+	tray.Initialize(c.logger, c.config.Logging.FilePath)
+}
+
+// GetLogger 取得 logger 實例
+func (c *AppPulseClient) GetLogger() *log.Logger {
+	return c.logger
+}
+
+// Shutdown 關閉客戶端
+func (c *AppPulseClient) Shutdown() {
+	c.logger.Println("正在關閉客戶端...")
+	select {
+	case <-c.shutdownChan:
+		// 已經關閉
+	default:
+		close(c.shutdownChan)
+	}
+	c.stopCSharpApp()
+	if c.pipeHandle != 0 {
+		windows.CloseHandle(c.pipeHandle)
+	}
+}
+
+// Restart 重新啟動客戶端
+func (c *AppPulseClient) Restart() {
+	c.logger.Println("正在重新啟動客戶端...")
+	select {
+	case <-c.restartChan:
+		// 已經發送重啟信號
+	default:
+		close(c.restartChan)
+	}
 }
 
 // Run 啟動並執行 AppPulse 客戶端。
@@ -108,9 +149,24 @@ func (c *AppPulseClient) Run() error {
 		}
 	}()
 
-	// 等待訊號
-	<-sigChan
-	c.logger.Println("收到退出訊號，正在關閉...")
+	// 等待訊號或關閉通知
+	select {
+	case <-sigChan:
+		c.logger.Println("收到退出訊號，正在關閉...")
+	case <-c.shutdownChan:
+		c.logger.Println("收到關閉通知，正在關閉...")
+	case <-c.restartChan:
+		c.logger.Println("收到重啟通知，正在重新啟動...")
+		// 停止 C# 應用程式
+		c.stopCSharpApp()
+		// 關閉管道
+		if c.pipeHandle != 0 {
+			windows.CloseHandle(c.pipeHandle)
+			c.pipeHandle = 0
+		}
+		// 返回特殊錯誤表示需要重啟
+		return fmt.Errorf("restart")
+	}
 
 	// 停止C#應用程式 (defer 會再次調用，但 stopOnce 會防止重複執行)
 	c.stopCSharpApp()

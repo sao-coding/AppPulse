@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"apppulse-easy/pkg/models"
+	"apppulse/pkg/models"
 	"strings"
 )
 

@@ -3,7 +3,7 @@ package app
 import (
 	"time"
 
-	"apppulse-easy/pkg/models"
+	"apppulse/pkg/models"
 )
 
 // resetWindowIdleTimer 重置視窗閒置計時器。

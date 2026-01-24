@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	"apppulse-easy/pkg/models"
+	"apppulse/pkg/models"
 
 	"sigs.k8s.io/yaml"
 )
@@ -44,7 +44,8 @@ filter:
 logging:
   level: "info"      # 日誌等級: debug, info, warn, error
   file_path: "apppulse.log" # 日誌檔案路徑，留空則輸出到控制台
-  debug: false       # 除錯模式
+
+debug: false         # 除錯模式 (true: 輸出到控制台和日誌檔案, false: 只輸出到日誌檔案)
 `
 	return os.WriteFile(configPath, []byte(defaultConfig), 0644)
 }

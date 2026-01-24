@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"apppulse-easy/pkg/models"
+	"apppulse/pkg/models"
 )
 
 // sendToWebhook 負責將事件序列化為 JSON 並發送到設定中指定的 Webhook URL。

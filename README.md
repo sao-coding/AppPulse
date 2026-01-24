@@ -1,4 +1,4 @@
-# AppPulse Easy
+# AppPulse
 
 一個用 Go 撰寫的程式，用來與 C# AppPulse 應用程式進行 IPC（命名管道）通訊，處理媒體播放與前景視窗事件，並提供將事件轉發到 Webhook 的功能。
 

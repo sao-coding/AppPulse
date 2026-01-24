@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,8 +27,24 @@ func (c *AppPulseClient) startCSharpApp() error {
 	c.logger.Printf("啟動 C# 應用程式: %s", csharpExePath)
 
 	cmd := exec.Command(csharpExePath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	
+	// 根據 debug 模式決定子程序的輸出目標
+	if c.config.Debug {
+		// Debug 模式：輸出到控制台
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	} else {
+		// 非 Debug 模式：丟棄輸出，避免開啟控制台視窗
+		cmd.Stdout = io.Discard
+		cmd.Stderr = io.Discard
+	}
+
+	// Windows 特定：隱藏子程序視窗
+	if runtime.GOOS == "windows" && !c.config.Debug {
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow: true,
+		}
+	}
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("啟動 C# 應用程式失敗: %v", err)

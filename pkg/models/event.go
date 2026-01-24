@@ -17,8 +17,8 @@ type Config struct {
 	Logging struct {
 		Level    string `yaml:"level" json:"level"`
 		FilePath string `yaml:"file_path" json:"file_path"`
-		Debug    bool   `yaml:"debug" json:"debug"`
 	} `yaml:"logging" json:"logging"`
+	Debug bool `yaml:"debug" json:"debug"` // 除錯模式：true 會輸出到控制台，false 只寫日誌檔案
 }
 
 // MusicEvent 代表一個音樂播放事件。
