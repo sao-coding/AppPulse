@@ -98,13 +98,27 @@ func (c *AppPulseClient) Shutdown() {
 	select {
 	case <-c.shutdownChan:
 		// 已經關閉
+		c.logger.Println("客戶端已經處於關閉狀態")
+		return
 	default:
 		close(c.shutdownChan)
 	}
+	
+	// 停止 C# 應用程式
 	c.stopCSharpApp()
+	
+	// 關閉管道
 	if c.pipeHandle != 0 {
+		c.logger.Println("關閉命名管道連線...")
 		windows.CloseHandle(c.pipeHandle)
+		c.pipeHandle = 0
 	}
+	
+	// 確保系統托盤圖示被清理
+	c.logger.Println("清理系統托盤...")
+	tray.Quit()
+	
+	c.logger.Println("客戶端關閉完成")
 }
 
 // Restart 重新啟動客戶端

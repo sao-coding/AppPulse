@@ -52,7 +52,9 @@ func main() {
 		go runClientLoop(client)
 	}, func() {
 		// 托盤退出時的回調
+		client.GetLogger().Println("系統托盤正在退出，開始清理資源...")
 		client.Shutdown()
+		client.GetLogger().Println("清理完成，應用程式即將關閉")
 	})
 }
 

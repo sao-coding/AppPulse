@@ -68,14 +68,9 @@ func (c *AppPulseClient) stopCSharpApp() {
 
 		c.logger.Println("正在停止 C# 應用程式...")
 
-		// 在 Windows 上，我們可以直接嘗試 Kill
+		// 在 Windows 上，使用優雅關閉 + 重試機制
 		if runtime.GOOS == "windows" {
-			c.logger.Println("Windows 平台：嘗試直接終止程序。")
-			if err := c.csharpProcess.Kill(); err != nil {
-				c.logger.Printf("強制終止 C# 應用程式失敗: %v", err)
-			} else {
-				c.logger.Println("C# 應用程式已被要求終止。")
-			}
+			c.stopCSharpAppWindows()
 			return
 		}
 
@@ -108,4 +103,57 @@ func (c *AppPulseClient) stopCSharpApp() {
 			}
 		}
 	})
+}
+
+// stopCSharpAppWindows Windows 平台專用的 C# 應用程式停止邏輯，包含重試機制
+func (c *AppPulseClient) stopCSharpAppWindows() {
+	const maxRetries = 3
+	const retryDelay = 2 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		c.logger.Printf("Windows 平台：嘗試終止 C# 程序（第 %d/%d 次）", attempt, maxRetries)
+
+		// 嘗試終止程序
+		if err := c.csharpProcess.Kill(); err != nil {
+			c.logger.Printf("終止程序失敗: %v", err)
+			
+			// 如果是最後一次嘗試，記錄錯誤並退出
+			if attempt == maxRetries {
+				c.logger.Printf("已達到最大重試次數（%d次），放棄終止 C# 應用程式", maxRetries)
+				return
+			}
+			
+			// 等待後重試
+			c.logger.Printf("等待 %v 後重試...", retryDelay)
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		// 終止成功，等待程序退出
+		c.logger.Println("已發送終止訊號，等待程序退出...")
+		done := make(chan error, 1)
+		go func() {
+			_, err := c.csharpProcess.Wait()
+			done <- err
+		}()
+
+		select {
+		case <-time.After(3 * time.Second):
+			c.logger.Println("程序未在 3 秒內退出")
+			if attempt < maxRetries {
+				c.logger.Println("準備重試...")
+				time.Sleep(retryDelay)
+				continue
+			}
+		case err := <-done:
+			if err != nil {
+				c.logger.Printf("C# 應用程式退出時出錯: %v", err)
+			} else {
+				c.logger.Println("C# 應用程式已成功終止")
+			}
+			return
+		}
+	}
+
+	c.logger.Println("C# 應用程式終止流程完成")
 }
