@@ -13,12 +13,17 @@ type Config struct {
 	Filter struct {
 		Apps            []string `yaml:"apps" json:"apps"`
 		MsedgeInprivate bool     `yaml:"msedge_inprivate" json:"msedge_inprivate"`
+		MaskTitleApps   []string `yaml:"mask_title_apps" json:"mask_title_apps"`
+		MaskTitleText   string   `yaml:"mask_title_text" json:"mask_title_text"`
 	} `yaml:"filter" json:"filter"`
 	Logging struct {
 		Level    string `yaml:"level" json:"level"`
 		FilePath string `yaml:"file_path" json:"file_path"`
 	} `yaml:"logging" json:"logging"`
 	Debug bool `yaml:"debug" json:"debug"` // 除錯模式：true 會輸出到控制台，false 只寫日誌檔案
+
+	// Warnings 為載入設定時產生的警告，不來自 YAML。
+	Warnings []string `yaml:"-" json:"-"`
 }
 
 // MusicEvent 代表一個音樂播放事件。
@@ -38,6 +43,20 @@ type WindowEvent struct {
 	Process string `json:"process"`
 	App     string `json:"app"`
 	Title   string `json:"title"`
+}
+
+// SessionEvent 代表工作階段狀態變化（locked/unlocked/suspend/resume）。
+type SessionEvent struct {
+	Time  string `json:"time"`
+	Type  string `json:"type"`
+	State string `json:"state"`
+}
+
+// InputEvent 回報距離上次鍵鼠輸入已過的秒數。
+type InputEvent struct {
+	Time        string `json:"time"`
+	Type        string `json:"type"`
+	IdleSeconds int    `json:"idleSeconds"`
 }
 
 // Event 是一個通用事件介面，所有事件類型都應實現它。

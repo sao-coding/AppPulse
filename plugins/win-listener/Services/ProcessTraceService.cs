@@ -8,7 +8,14 @@ namespace AppPulse.WinListener.Services;
 
 public class ProcessTraceService : IDisposable
 {
+    private const uint EventObjectNameChange = 0x800C;
+    private const int ObjIdWindow = 0;
+    private static readonly TimeSpan NameChangeDebounce = TimeSpan.FromMilliseconds(400);
+
     private HWINEVENTHOOK _hookHandle;
+    private HWINEVENTHOOK _nameHookHandle;
+    private readonly System.Threading.Timer _nameChangeTimer;
+    private HWND _pendingNameHwnd;
     private readonly WINEVENTPROC _hookDelegate;
     private bool _disposed = false;
     private HWND _lastHwnd;
@@ -21,6 +28,7 @@ public class ProcessTraceService : IDisposable
     public ProcessTraceService()
     {
         _hookDelegate = new WINEVENTPROC(WinEventProc);
+        _nameChangeTimer = new System.Threading.Timer(_ => FlushNameChange(), null, Timeout.Infinite, Timeout.Infinite);
         _eventThread = new Thread(() =>
         {
             // Store the thread ID for PostThreadMessage
@@ -30,6 +38,15 @@ public class ProcessTraceService : IDisposable
             _hookHandle = SetWinEventHook(
                 EVENT_SYSTEM_FOREGROUND,
                 EVENT_SYSTEM_FOREGROUND,
+                HMODULE.Null,
+                _hookDelegate,
+                0, 0,
+                WINEVENT_OUTOFCONTEXT);
+
+            // 前景視窗標題變化（例如 Edge 切換分頁）不會觸發前景事件，另外監聽。
+            _nameHookHandle = SetWinEventHook(
+                EventObjectNameChange,
+                EventObjectNameChange,
                 HMODULE.Null,
                 _hookDelegate,
                 0, 0,
@@ -64,6 +81,15 @@ public class ProcessTraceService : IDisposable
 
         try
         {
+            if (eventType == EventObjectNameChange)
+            {
+                if (idObject != ObjIdWindow || idChild != 0 || hwnd.Value == IntPtr.Zero) return;
+                if (hwnd != GetForegroundWindow()) return;
+                _pendingNameHwnd = hwnd;
+                _nameChangeTimer.Change(NameChangeDebounce, Timeout.InfiniteTimeSpan);
+                return;
+            }
+
             if (hwnd.Value == IntPtr.Zero || hwnd == _lastHwnd) return;
             _lastHwnd = hwnd;
             InvokeHandlers(hwnd);
@@ -71,6 +97,23 @@ public class ProcessTraceService : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] WinEventProc 錯誤: {ex.Message}");
+        }
+    }
+
+    private void FlushNameChange()
+    {
+        if (_disposed) return;
+        try
+        {
+            var hwnd = _pendingNameHwnd;
+            if (hwnd.Value != IntPtr.Zero && hwnd == GetForegroundWindow())
+            {
+                InvokeHandlers(hwnd);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 標題變更處理錯誤: {ex.Message}");
         }
     }
 
@@ -157,6 +200,11 @@ public class ProcessTraceService : IDisposable
             {
                 UnhookWinEvent(_hookHandle);
             }
+            if (_nameHookHandle.Value != IntPtr.Zero)
+            {
+                UnhookWinEvent(_nameHookHandle);
+            }
+            _nameChangeTimer.Dispose();
             // Safely stop the message loop thread
             if (_eventThread.IsAlive)
             {

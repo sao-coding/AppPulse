@@ -10,7 +10,11 @@ filter:
     - 'explorer'
     - 'dwm'
 
-  disable_msedge_inprivate_filter: true # 是否停用 Edge InPrivate 模式的過濾
+  msedge_inprivate: true # 是否過濾 Edge InPrivate 模式 (true: 過濾, false: 不過濾)
+
+  mask_title_apps: # 只回報應用程式名稱、隱藏視窗標題的應用程式（例如密碼管理器、私訊軟體）
+    - "KeePass"
+  mask_title_text: "（已隱藏）" # 被隱藏時顯示的標題文字，不可為空
 
 logging:
   level: 'info' # 日誌等級: debug, info, warn, error

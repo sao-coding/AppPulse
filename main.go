@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"strings"
 
 	"apppulse/pkg/app"
 	"apppulse/pkg/config"
@@ -36,50 +35,22 @@ func main() {
 		tempLogger.Fatalf("建立 AppPulse 客戶端失敗: %v", err)
 	}
 
-	// 初始化系統托盤
+	// 初始化系統托盤（選單動作在此綁定到客戶端）
 	client.InitTray()
-
-	// 設定重啟回調函式
-	tray.SetRestartFunc(func() {
-		client.Restart()
-	})
 
 	// 啟動系統托盤（這會阻塞直到退出）
 	tray.Run(func() {
-		// 托盤就緒後的回調
 		tray.Setup()
-		// 在背景執行客戶端（支援重啟循環）
-		go runClientLoop(client)
+		// 在背景監督 C# 監聽程式（斷線會自動重啟，重啟與熱重載都在 Run 內處理）
+		go func() {
+			if err := client.Run(); err != nil {
+				client.GetLogger().Printf("執行客戶端時發生無法恢復的錯誤: %v", err)
+				tray.Quit()
+			}
+		}()
 	}, func() {
-		// 托盤退出時的回調
 		client.GetLogger().Println("系統托盤正在退出，開始清理資源...")
 		client.Shutdown()
 		client.GetLogger().Println("清理完成，應用程式即將關閉")
 	})
-}
-
-// runClientLoop 執行客戶端循環，支援重啟
-func runClientLoop(client *app.AppPulseClient) {
-	for {
-		err := client.Run()
-		if err != nil {
-			// 檢查是否是重啟請求
-			if strings.Contains(err.Error(), "restart") {
-				client.GetLogger().Println("正在重新啟動...")
-				// 重新建立客戶端
-				newClient, err := app.NewAppPulseClient("config.yaml")
-				if err != nil {
-					client.GetLogger().Printf("重啟失敗: %v", err)
-					return
-				}
-				// 更新客戶端引用
-				*client = *newClient
-				client.GetLogger().Println("重啟完成，繼續執行...")
-				continue
-			}
-			client.GetLogger().Printf("執行客戶端時發生錯誤: %v", err)
-		}
-		// 正常退出，結束循環
-		break
-	}
 }
